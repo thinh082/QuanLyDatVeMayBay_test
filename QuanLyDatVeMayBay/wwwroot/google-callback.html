@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết quả đăng nhập</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(135deg, #f0f4ff, #d0e1ff);
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+
+        .box {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .success {
+            color: #28a745;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .fail {
+            color: #dc3545;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        p {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        .loading {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div id="statusText">🔄 Đang xác thực...</div>
+        <p id="message">Vui lòng chờ trong giây lát...</p>
+        <div class="loading">Đang xử lý đăng nhập Google...</div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        const state = params.get("state");
+
+        const statusText = document.getElementById("statusText");
+        const msgEl = document.getElementById("message");
+
+        async function processLogin() {
+            if (!code) {
+                statusText.className = "fail";
+                statusText.textContent = "❌ Không tìm thấy mã xác thực!";
+                msgEl.textContent = "Vui lòng thử đăng nhập lại.";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/XacThucTaiKhoan/google-callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || "")}`);
+                const result = await response.json();
+
+                if (result.statusCode === 200) {
+                    statusText.className = "success";
+                    statusText.textContent = "✅ Đăng nhập thành công!";
+                    msgEl.textContent = result.message || "Chào mừng bạn quay lại!";
+
+                    // 🟢 Nếu có token, redirect về app React Native qua deep link
+                    if (result.token) {
+                        const deepLink = `myapp://auth-callback?token=${encodeURIComponent(result.token)}`;
+                        setTimeout(() => {
+                            window.location.href = deepLink; // <-- gửi token về app
+                        }, 800); // delay nhẹ để người dùng thấy thông báo
+                    }
+                } else {
+                    statusText.className = "fail";
+                    statusText.textContent = "❌ Đăng nhập thất bại!";
+                    msgEl.textContent = result.message || "Không thể xác thực tài khoản.";
+                }
+            } catch (err) {
+                console.error(err);
+                statusText.className = "fail";
+                statusText.textContent = "❌ Lỗi máy chủ!";
+                msgEl.textContent = "Không thể kết nối đến API.";
+            }
+        }
+
+        processLogin();
+    </script>
+</body>
+</html>
