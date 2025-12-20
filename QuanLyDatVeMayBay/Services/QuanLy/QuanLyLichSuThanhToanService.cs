@@ -34,29 +34,6 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
             // Áp dụng filter
             if (filter != null)
             {
-                if (filter.Id.HasValue && filter.Id.Value > 0)
-                    query = query.Where(l => l.Id == filter.Id.Value);
-
-                if (!string.IsNullOrEmpty(filter.MaThanhToan))
-                    query = query.Where(l => l.MaThanhToan != null && l.MaThanhToan.Contains(filter.MaThanhToan));
-
-                if (!string.IsNullOrEmpty(filter.Email))
-                    query = query.Where(l => l.IdTaiKhoanNavigation.Email != null && 
-                                          l.IdTaiKhoanNavigation.Email.Contains(filter.Email));
-
-                if (!string.IsNullOrEmpty(filter.SoDienThoai))
-                    query = query.Where(l => l.IdTaiKhoanNavigation.SoDienThoai != null && 
-                                          l.IdTaiKhoanNavigation.SoDienThoai.Contains(filter.SoDienThoai));
-
-                if (filter.IdPhuongThucThanhToan.HasValue)
-                    query = query.Where(l => l.IdPhuongThucThanhToan == filter.IdPhuongThucThanhToan.Value);
-
-                if (filter.TrangThaiId.HasValue)
-                    query = query.Where(l => l.TrangThaiId == filter.TrangThaiId.Value);
-
-                if (!string.IsNullOrEmpty(filter.LoaiDichVu))
-                    query = query.Where(l => l.LoaiDichVu != null && l.LoaiDichVu.Contains(filter.LoaiDichVu));
-
                 if (filter.NgayThanhToanFrom.HasValue)
                     query = query.Where(l => l.NgayThanhToan.Date >= filter.NgayThanhToanFrom.Value.Date);
 
