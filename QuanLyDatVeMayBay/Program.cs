@@ -65,6 +65,7 @@ builder.Services.AddScoped<IQuanLyChuyenBayService, QuanLyChuyenBayService>();
 builder.Services.AddScoped<IQuanLyNguoiDungService, QuanLyNguoiDungService>();
 builder.Services.AddScoped<IQuanLyVeService, QuanLyVeService>();
 builder.Services.AddScoped<IQuanLyThongKeService, QuanLyThongKeService>();
+builder.Services.AddScoped<IQuanLyLichSuThanhToanService, QuanLyLichSuThanhToanService>();
 builder.Services.AddHostedService<QueuedHostedService>();
 builder.Services.AddJwtAuthenticate(builder.Configuration);
 builder.Services.AddAuthorization();
