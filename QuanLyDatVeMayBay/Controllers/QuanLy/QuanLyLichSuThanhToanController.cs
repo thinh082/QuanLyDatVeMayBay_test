@@ -81,8 +81,12 @@ namespace QuanLyDatVeMayBay.Controllers.QuanLy
         public async Task<IActionResult> ExportExcel([FromBody] LocLichSuThanhToanModel? filter = null)
         {
             var result = await _service.ExportExcel(filter);
-            return Ok(result);
+            if (result.statusCode != 200)
+                return StatusCode(result.statusCode, result);
+
+            return File(result.fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.fileName);
         }
+
     }
 }
 

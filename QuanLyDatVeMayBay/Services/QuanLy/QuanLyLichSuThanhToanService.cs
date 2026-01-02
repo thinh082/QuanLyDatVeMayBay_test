@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using QuanLyDatVeMayBay.Models.Entities;
 using QuanLyDatVeMayBay.Models.Model;
-
+using System.Drawing;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 namespace QuanLyDatVeMayBay.Services.QuanLy
 {
     public interface IQuanLyLichSuThanhToanService
@@ -246,12 +248,93 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
 
         public async Task<dynamic> ExportExcel(LocLichSuThanhToanModel? filter = null)
         {
-            // TODO: Implement export Excel using EPPlus
-            // Tương tự như các service khác, bạn có thể sử dụng EPPlus để export
+            // Lấy dữ liệu tương tự như GetDanhSachLichSuThanhToan nhưng không phân trang
+            var query = _context.LichSuThanhToans
+                .Include(l => l.IdTaiKhoanNavigation)
+                    .ThenInclude(tk => tk.KhachHang)
+                .Include(l => l.IdPhuongThucThanhToanNavigation)
+                .Include(l => l.TrangThai)
+                .AsQueryable();
+
+            // Áp dụng filter
+            if (filter != null)
+            {
+                if (filter.NgayThanhToanFrom.HasValue)
+                    query = query.Where(l => l.NgayThanhToan.Date >= filter.NgayThanhToanFrom.Value.Date);
+
+                if (filter.NgayThanhToanTo.HasValue)
+                    query = query.Where(l => l.NgayThanhToan.Date <= filter.NgayThanhToanTo.Value.Date);
+
+                if (filter.SoTienMin.HasValue)
+                    query = query.Where(l => l.SoTien >= filter.SoTienMin.Value);
+
+                if (filter.SoTienMax.HasValue)
+                    query = query.Where(l => l.SoTien <= filter.SoTienMax.Value);
+            }
+
+            var data = await query
+                .OrderByDescending(l => l.NgayThanhToan)
+                .Select(l => new
+                {
+                    l.MaThanhToan,
+                    Email = l.IdTaiKhoanNavigation.Email,
+                    SoDienThoai = l.IdTaiKhoanNavigation.SoDienThoai,
+                    TenKhachHang = l.IdTaiKhoanNavigation.KhachHang != null
+                        ? l.IdTaiKhoanNavigation.KhachHang.TenKh
+                        : null,
+                    l.SoTien,
+                    PhuongThucThanhToan = l.IdPhuongThucThanhToanNavigation.TenPhuongThuc,
+                    TrangThai = l.TrangThai.TenTrangThai,
+                    l.NgayThanhToan,
+                    l.LoaiDichVu
+                })
+                .ToListAsync();
+
+            // Tạo file Excel bằng EPPlus
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("LichSuThanhToan");
+
+            // Header
+            var headers = new[]
+            {
+        "Mã thanh toán", "Email", "Số điện thoại", "Tên khách hàng", "Số tiền",
+        "Phương thức thanh toán", "Trạng thái", "Ngày thanh toán", "Loại dịch vụ"
+    };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cells[1, i + 1].Value = headers[i];
+                ws.Cells[1, i + 1].Style.Font.Bold = true;
+                ws.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                ws.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+            }
+
+            // Data
+            int row = 2;
+            foreach (var item in data)
+            {
+                ws.Cells[row, 1].Value = item.MaThanhToan;
+                ws.Cells[row, 2].Value = item.Email;
+                ws.Cells[row, 3].Value = item.SoDienThoai;
+                ws.Cells[row, 4].Value = item.TenKhachHang;
+                ws.Cells[row, 5].Value = item.SoTien;
+                ws.Cells[row, 6].Value = item.PhuongThucThanhToan;
+                ws.Cells[row, 7].Value = item.TrangThai;
+                ws.Cells[row, 8].Value = item.NgayThanhToan.ToString("dd/MM/yyyy HH:mm");
+                ws.Cells[row, 9].Value = item.LoaiDichVu;
+                row++;
+            }
+
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+            var fileBytes = package.GetAsByteArray();
+
             return new
             {
-                statusCode = 501,
-                message = "Chức năng export Excel đang được phát triển"
+                statusCode = 200,
+                message = "Xuất Excel thành công",
+                fileName = $"LichSuThanhToan_{DateTime.Now:yyyyMMddHHmmss}.xlsx",
+                fileContent = fileBytes
             };
         }
     }
