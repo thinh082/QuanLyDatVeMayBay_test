@@ -44,10 +44,21 @@ builder.Services.AddCors(options =>
                     .SetIsOriginAllowed(_ => true);
          });
 });
-builder.Services.AddSignalR();
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect("localhost:6379")
+// 1. Cấu hình Options cho Upstash
+var redisOptions = new ConfigurationOptions
+{
+    EndPoints = { "eternal-rattler-78535.upstash.io:6379" },
+    Password = "gQAAAAAAATLHAAIncDE5YTc5Mjg2Nzk4NTE0OWM4YmEwZTQwNmFiZjZjOTZhN3AxNzg1MzU",
+    Ssl = true,
+    AbortOnConnectFail = false, // Giúp ứng dụng không bị crash ngay lập tức nếu mất mạng
+};
+
+// 2. Đăng ký Singleton với ConnectionMultiplexer đã cấu hình
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(redisOptions)
 );
+
+builder.Services.AddSignalR();
 builder.Services.AddSingleton<RedisService>();
 builder.Services.AddScoped<IXacThucTaiKhoanServices, XacThucTaiKhoanServices>();
 builder.Services.AddHttpClient<IGoogle, Google>();
