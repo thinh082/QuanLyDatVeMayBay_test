@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using QuanLyDatVeMayBay.Models.Entities;
 using QuanLyDatVeMayBay.Models.Model;
 
@@ -48,6 +48,7 @@ namespace QuanLyDatVeMayBay.Services.ThongTinService.cs
             {
                 TenKh = ThongTin?.TenKh,
                 Email = taiKhoan.Email,
+                SoDienThoai = taiKhoan.SoDienThoai,
                 HinhAnh = taiKhoan.HinhAnh,
                 isEmail = taiKhoan.IsEmail,
                 idTaiKhoan = taiKhoan.Id,

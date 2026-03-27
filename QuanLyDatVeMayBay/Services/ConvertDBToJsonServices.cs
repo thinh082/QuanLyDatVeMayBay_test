@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using QuanLyDatVeMayBay.Models.Entities;
 using Newtonsoft.Json;
 
@@ -27,7 +27,7 @@ public class ConvertDBToJsonServices
             .ToListAsync();
 
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "Tinh.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -45,7 +45,7 @@ public class ConvertDBToJsonServices
             .ToListAsync();
 
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "TienNghi.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -65,7 +65,7 @@ public class ConvertDBToJsonServices
             .ToListAsync();
 
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "Quan.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -85,7 +85,7 @@ public class ConvertDBToJsonServices
             .ToListAsync();
 
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "Phuong.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -102,7 +102,7 @@ public class ConvertDBToJsonServices
             .OrderBy(x => x.ten)
             .ToListAsync();
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "QuocTich.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -118,7 +118,7 @@ public class ConvertDBToJsonServices
             .OrderBy(x => x.Ma)
             .ToListAsync();
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "SanBay.json");
         await File.WriteAllTextAsync(filePath, json);
@@ -135,7 +135,7 @@ public class ConvertDBToJsonServices
             .OrderBy(x => x.ten)
             .ToListAsync();
         string json = JsonConvert.SerializeObject(data);
-        string folderPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Models", "Config", "data");
+        string folderPath = Path.Combine(_hostingEnvironment.WebRootPath, "Models", "Config", "data");
         Directory.CreateDirectory(folderPath);
         string filePath = Path.Combine(folderPath, "HangBay.json");
         await File.WriteAllTextAsync(filePath, json);
