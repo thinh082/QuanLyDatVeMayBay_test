@@ -92,7 +92,7 @@ builder.Services.AddScoped<ConvertDBToJsonServices>();
 
 builder.Services.AddScoped(sp =>
 {
-    var db = sp.GetRequiredService<ThinhContext>();
+    var db = sp.GetRequiredService<ThinhContext>();//
     return AwsHelper.LoadAwsS3Settings(db);
 });
 
