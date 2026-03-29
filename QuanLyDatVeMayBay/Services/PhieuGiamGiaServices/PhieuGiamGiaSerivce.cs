@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using QuanLyDatVeMayBay.Models.Entities;
 using QuanLyDatVeMayBay.Models.Model;
 
@@ -13,6 +13,7 @@ namespace QuanLyDatVeMayBay.Services.PhieuGiamGiaServices
         Task<dynamic> GetDanhSachPhieuGiamGia();
         Task<dynamic> ActivePhieuGiamGia(long idPhieuGiamGia);
         Task<dynamic> CapNhatPhieuGiamGia(ThemPhieuGiamGiaModel model);
+        Task<dynamic> XoaPhieuGiamGia(long idPhieuGiamGia);
     }
     public class PhieuGiamGiaSerivce : IPhieuGiamGiaService
     {
@@ -226,6 +227,31 @@ namespace QuanLyDatVeMayBay.Services.PhieuGiamGiaServices
             _context.PhieuGiamGia.Update(phieuGiamGia);
             await _context.SaveChangesAsync();
             return new { statusCode = 200, message = "Cập nhật trạng thái phiếu giảm giá thành công" };
+        }
+
+        public async Task<dynamic> XoaPhieuGiamGia(long idPhieuGiamGia)
+        {
+            if (idPhieuGiamGia <= 0)
+            {
+                return new { statusCode = 400, message = "Id phiếu giảm giá không hợp lệ" };
+            }
+
+            var phieuGiamGia = await _context.PhieuGiamGia.FindAsync(idPhieuGiamGia);
+            if (phieuGiamGia == null)
+            {
+                return new { statusCode = 404, message = "Không tìm thấy phiếu giảm giá" };
+            }
+
+            try
+            {
+                _context.PhieuGiamGia.Remove(phieuGiamGia);
+                await _context.SaveChangesAsync();
+                return new { statusCode = 200, message = "Xóa phiếu giảm giá thành công" };
+            }
+            catch (Exception ex)
+            {
+                return new { statusCode = 500, message = "Đã xảy ra lỗi: " + ex.Message };
+            }
         }
     }
 }

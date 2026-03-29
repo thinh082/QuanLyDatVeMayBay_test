@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using QuanLyDatVeMayBay.Models.Entities;
@@ -87,6 +87,13 @@ namespace QuanLyDatVeMayBay.Controllers
         public async Task<IActionResult> CapNhatPhieuGiamGia(ThemPhieuGiamGiaModel phieuGiamGia)
         {
             var result = await _services.CapNhatPhieuGiamGia(phieuGiamGia);
+            return Ok(result);
+        }
+
+        [HttpPost("XoaPhieuGiamGia")]
+        public async Task<IActionResult> XoaPhieuGiamGia(long idPhieuGiamGia)
+        {
+            var result = await _services.XoaPhieuGiamGia(idPhieuGiamGia);
             return Ok(result);
         }
     }
