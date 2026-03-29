@@ -90,11 +90,6 @@ namespace QuanLyDatVeMayBay.Controllers
             return Ok(result);
         }
 
-        [HttpPost("XoaPhieuGiamGia")]
-        public async Task<IActionResult> XoaPhieuGiamGia(long idPhieuGiamGia)
-        {
-            var result = await _services.XoaPhieuGiamGia(idPhieuGiamGia);
-            return Ok(result);
-        }
+        
     }
 }
