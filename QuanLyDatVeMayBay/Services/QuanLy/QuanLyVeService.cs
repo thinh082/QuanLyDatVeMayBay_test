@@ -4,6 +4,7 @@ using QuanLyDatVeMayBay.Models.Model;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using SkiaSharp;
 
 namespace QuanLyDatVeMayBay.Services.QuanLy
 {
@@ -169,6 +170,8 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
 
         public async Task<byte[]?> InChiTietVe(long idDatVe)
         {
+            QuestPDF.Settings.EnableDebugging = false;
+
             var datVe = await _context.DatVes
                 .Include(d => d.IdTaiKhoanNavigation)
                     .ThenInclude(tk => tk.KhachHang)
@@ -195,56 +198,435 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
             var thoiGianDi = datVe.LichBay?.ThoiGianOsanBayDiUtc;
             var thoiGianDen = datVe.LichBay?.ThoiGianOsanBayDenUtc;
 
+            // Lấy mã sân bay (dùng key nếu tên không có)
+            var maSanBayDi = datVe.IdChuyenBayNavigation?.MaSanBayDi ?? "";
+            var maSanBayDen = datVe.IdChuyenBayNavigation?.MaSanBayDen ?? "";
+            var soHieuCB = datVe.IdChuyenBay.ToString();
+            var trangThaiHienThi = datVe.TrangThai ?? "";
+            if (trangThaiHienThi.Length > 18)
+                trangThaiHienThi = $"{trangThaiHienThi[..18]}...";
+
+            // Tải ảnh trước (ngoài lambda để không block rendering)
+            async Task<byte[]?> TaiAnhAsync(string url)
+            {
+                try
+                {
+                    using var httpClient = new System.Net.Http.HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(5);
+                    return await httpClient.GetByteArrayAsync(url);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            byte[]? TaoQrCodeBytes(string content)
+            {
+                try
+                {
+                    using var qrGenerator = new QRCoder.QRCodeGenerator();
+                    using var qrCodeData = qrGenerator.CreateQrCode(content, QRCoder.QRCodeGenerator.ECCLevel.Q);
+                    using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
+                    return qrCode.GetGraphic(8);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            void VeNenHeaderGradient(SKCanvas canvas, Size size)
+            {
+                using var shader = SKShader.CreateLinearGradient(
+                    new SKPoint(0, 0),
+                    new SKPoint(size.Width, size.Height),
+                    new[] { SKColor.Parse("#0B3D91"), SKColor.Parse("#1D8FE1") },
+                    null,
+                    SKShaderTileMode.Clamp);
+
+                using var paint = new SKPaint
+                {
+                    IsAntialias = true,
+                    Shader = shader
+                };
+
+                canvas.DrawRect(new SKRect(0, 0, size.Width, size.Height), paint);
+            }
+
+            void VeIconThuongHieu(SKCanvas canvas, Size size)
+            {
+                using var linePaint = new SKPaint
+                {
+                    Color = SKColor.Parse("#FFFFFF"),
+                    IsAntialias = true,
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = 2.4f,
+                    StrokeCap = SKStrokeCap.Round
+                };
+
+                using var trailPaint = new SKPaint
+                {
+                    Color = SKColor.Parse("#BFDBFE"),
+                    IsAntialias = true,
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = 1.4f,
+                    StrokeCap = SKStrokeCap.Round
+                };
+
+                var flightPath = new SKPath();
+                flightPath.MoveTo(size.Width * 0.1f, size.Height * 0.78f);
+                flightPath.CubicTo(
+                    size.Width * 0.35f, size.Height * 0.95f,
+                    size.Width * 0.55f, size.Height * 0.42f,
+                    size.Width * 0.92f, size.Height * 0.22f);
+                canvas.DrawPath(flightPath, trailPaint);
+
+                canvas.DrawLine(size.Width * 0.32f, size.Height * 0.56f, size.Width * 0.74f, size.Height * 0.30f, linePaint);
+                canvas.DrawLine(size.Width * 0.44f, size.Height * 0.64f, size.Width * 0.60f, size.Height * 0.78f, linePaint);
+            }
+
+            void VeKhungBoGoc(SKCanvas canvas, Size size, string nenMau)
+            {
+                using var fillPaint = new SKPaint
+                {
+                    Color = SKColor.Parse(nenMau),
+                    IsAntialias = true
+                };
+
+                canvas.DrawRoundRect(new SKRect(0, 0, size.Width, size.Height), 7f, 7f, fillPaint);
+            }
+
+            void TieuDeMuc(IContainer container, string tieuDe)
+            {
+                container.Row(row =>
+                {
+                    row.ConstantItem(4).Background("#2563EB");
+                    row.RelativeItem().PaddingLeft(6)
+                        .Text(tieuDe)
+                        .SemiBold().FontSize(8).FontColor("#1E3A8A");
+                });
+            }
+
+            var logoBytes = await TaiAnhAsync(
+                "https://res.cloudinary.com/dzffkairf/image/upload/v1774836382/logo-khong-background2_jggyeb.png");
+            var signBytes = await TaiAnhAsync(
+                "https://res.cloudinary.com/dzffkairf/image/upload/v1774797195/sign_bk91ae.png");
+            var qrBytes = TaoQrCodeBytes(
+                $"DATVE:{datVe.Id}|CHUYENBAY:{soHieuCB}|HANHKHACH:{tenKhachHang}|GHE:{datVe.ChiTietDatVes.Count}");
+
             var document = Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A5);
-                    page.Margin(30);
-                    // Dùng Arial để hỗ trợ đầy đủ ký tự tiếng Việt (Đ, Ă, Â,...)
-                    page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial"));
+                    page.Margin(3);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(7).FontFamily("Segoe UI"));
 
-                    page.Header().AlignCenter().Text("VÉ MÁY BAY ĐIỆN TỬ").Bold().FontSize(18);
-
-                    page.Content().PaddingVertical(10).Column(col =>
+                    // ===== HEADER =====
+                    page.Header().Column(header =>
                     {
-                        col.Spacing(6);
+                        header.Spacing(2);
 
-                        col.Item().Text($"Mã đặt vé: {datVe.Id}").Bold();
-                        col.Item().Text($"Ngày đặt: {datVe.NgayDat?.ToString("dd/MM/yyyy HH:mm") ?? ""}");
-                        col.Item().Text($"Trạng thái: {datVe.TrangThai}");
-                        col.Item().LineHorizontal(1);
-
-                        col.Item().Text("THÔNG TIN HÀNH KHÁCH").Bold();
-                        col.Item().Text($"Họ tên: {tenKhachHang}");
-                        col.Item().Text($"Email: {email}");
-                        col.Item().Text($"SĐT: {sdt}");
-                        col.Item().LineHorizontal(1);
-
-                        col.Item().Text("THÔNG TIN CHUYẾN BAY").Bold();
-                        col.Item().Text($"Hãng bay: {tenHangBay}");
-                        col.Item().Text($"Điểm đi: {sanBayDi}");
-                        col.Item().Text($"Điểm đến: {sanBayDen}");
-                        col.Item().Text($"Khởi hành: {thoiGianDi?.ToString("dd/MM/yyyy HH:mm") ?? ""}");
-                        col.Item().Text($"Đến nơi: {thoiGianDen?.ToString("dd/MM/yyyy HH:mm") ?? ""}");
-                        col.Item().LineHorizontal(1);
-
-                        col.Item().Text("DANH SÁCH GHẾ").Bold();
-                        foreach (var ct in datVe.ChiTietDatVes)
+                        header.Item().MinHeight(62).Layers(layers =>
                         {
-                            var loaiVe = ct.IdGheNgoiNavigation?.IdLoaiVeNavigation?.TenLoaiVe ?? "";
-                            col.Item().Text($"- Ghế: {ct.IdGheNgoiNavigation?.SoGhe} | Loại: {loaiVe}");
-                        }
-                        col.Item().LineHorizontal(1);
+                            layers.Layer().Canvas((canvas, size) =>
+                            {
+                                VeNenHeaderGradient(canvas, size);
+                            });
 
-                        col.Item().Text($"TỔNG TIỀN: {datVe.Gia?.ToString("N0")} VNĐ").Bold().FontSize(13);
+                            layers.PrimaryLayer().Padding(5).Row(row =>
+                            {
+                                row.RelativeItem().AlignMiddle().Row(brand =>
+                                {
+                                    brand.ConstantItem(22).AlignMiddle().Height(22)
+                                        .Canvas((canvas, size) => VeIconThuongHieu(canvas, size));
+
+                                    brand.ConstantItem(4);
+
+                                    if (logoBytes != null)
+                                    {
+                                        brand.ConstantItem(24).AlignMiddle().Height(20)
+                                            .Image(logoBytes).FitArea();
+                                    }
+                                    else
+                                    {
+                                        brand.ConstantItem(24).Height(20);
+                                    }
+
+                                    brand.RelativeItem().AlignMiddle().Column(c =>
+                                    {
+                                        c.Spacing(1);
+                                        c.Item().Text("Parador")
+                                            .FontFamily("Segoe UI")
+                                            .Bold().FontSize(14).FontColor(Colors.White);
+                                        c.Item().Text("Cong Ty TNHH Parador")
+                                            .SemiBold().FontSize(6).FontColor("#DBEAFE");
+                                        c.Item().Text("0822316128")
+                                            .FontSize(6).FontColor("#DBEAFE");
+                                    });
+                                });
+
+                                row.ConstantItem(84).AlignMiddle().MinHeight(42).Layers(codeBox =>
+                                {
+                                    codeBox.Layer().Canvas((canvas, size) =>
+                                    {
+                                        VeKhungBoGoc(canvas, size, "#0A2F70");
+                                    });
+
+                                    codeBox.PrimaryLayer().Padding(6).Column(c =>
+                                    {
+                                        c.Item().AlignCenter().Text("BOOKING CODE")
+                                            .SemiBold().FontSize(5.5f).FontColor("#BFDBFE");
+                                        c.Item().AlignCenter().Text($"#{datVe.Id}")
+                                            .Bold().FontSize(11).FontColor(Colors.White);
+                                        c.Item().AlignCenter().Text(trangThaiHienThi)
+                                            .FontSize(5).FontColor("#86EFAC");
+                                    });
+                                });
+                            });
+                        });
+
+                        header.Item()
+                            .PaddingHorizontal(1).PaddingTop(1)
+                            .Row(row =>
+                            {
+                                row.RelativeItem().Text("VE MAY BAY DIEN TU")
+                                    .SemiBold().FontSize(8).FontColor("#1E3A8A");
+                                row.RelativeItem().AlignRight()
+                                    .Text($"Ngay dat: {datVe.NgayDat?.ToString("dd/MM/yyyy HH:mm") ?? ""}")
+                                    .FontSize(6.5f).FontColor("#334155");
+                            });
                     });
 
-                    page.Footer().AlignCenter().Text(x =>
+                                        // ===== CONTENT =====
+                    page.Content().PaddingTop(4).Column(col =>
                     {
-                        x.Span("In ngày: ");
-                        x.Span(DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
+                        col.Spacing(5);
+
+                        // --- Thong tin hanh khach ---
+                        col.Item().Column(section =>
+                        {
+                            TieuDeMuc(section.Item(), "THONG TIN HANH KHACH");
+                            section.Item().PaddingTop(3).Layers(card =>
+                            {
+                                card.Layer().Canvas((canvas, size) =>
+                                {
+                                    VeKhungBoGoc(canvas, size, "#FFFFFF");
+                                });
+
+                                card.PrimaryLayer().Padding(5).Column(info =>
+                                {
+                                    info.Spacing(2);
+                                    info.Item().Row(r =>
+                                    {
+                                        r.ConstantItem(72).Text("Ho ten:").SemiBold().FontColor("#1E3A8A");
+                                        r.RelativeItem().Text(tenKhachHang);
+                                    });
+                                    info.Item().Row(r =>
+                                    {
+                                        r.ConstantItem(72).Text("Email:").SemiBold().FontColor("#1E3A8A");
+                                        r.RelativeItem().Text(email);
+                                    });
+                                    info.Item().Row(r =>
+                                    {
+                                        r.ConstantItem(72).Text("So dien thoai:").SemiBold().FontColor("#1E3A8A");
+                                        r.RelativeItem().Text(sdt);
+                                    });
+                                    info.Item().Row(r =>
+                                    {
+                                        r.ConstantItem(72).Text("Hang bay:").SemiBold().FontColor("#1E3A8A");
+                                        r.RelativeItem().Text(tenHangBay);
+                                    });
+                                });
+                            });
+                        });
+
+                        // --- Thong tin chuyen bay ---
+                        col.Item().Column(section =>
+                        {
+                            TieuDeMuc(section.Item(), "THONG TIN CHUYEN BAY");
+                            section.Item().PaddingTop(3).Layers(card =>
+                            {
+                                card.Layer().Canvas((canvas, size) =>
+                                {
+                                    VeKhungBoGoc(canvas, size, "#EFF6FF");
+                                });
+
+                                card.PrimaryLayer().Padding(5).Column(chuyenBay =>
+                                {
+                                    chuyenBay.Item().Row(row =>
+                                    {
+                                        row.RelativeItem().AlignCenter().Column(c =>
+                                        {
+                                            c.Item().AlignCenter().Text(maSanBayDi)
+                                                .Bold().FontSize(17).FontColor("#1D4ED8");
+                                            c.Item().AlignCenter().Text(sanBayDi)
+                                                .FontSize(7).FontColor("#334155");
+                                            c.Item().AlignCenter().Text(thoiGianDi?.ToString("HH:mm") ?? "")
+                                                .SemiBold().FontSize(9);
+                                            c.Item().AlignCenter().Text(thoiGianDi?.ToString("dd/MM/yyyy") ?? "")
+                                                .FontSize(7).FontColor("#64748B");
+                                        });
+
+                                        row.ConstantItem(64).AlignMiddle().Layers(center =>
+                                        {
+                                            center.Layer().AlignMiddle().PaddingHorizontal(6)
+                                                .LineHorizontal(1).LineColor("#93C5FD");
+                                            center.PrimaryLayer().AlignCenter().Column(c =>
+                                            {
+                                                c.Item().AlignCenter().Text("\u2708")
+                                                    .FontFamily("Segoe UI Symbol")
+                                                    .FontSize(12).FontColor("#2563EB");
+                                                c.Item().AlignCenter().Text(soHieuCB)
+                                                    .FontSize(6).FontColor("#475569");
+                                            });
+                                        });
+
+                                        row.RelativeItem().AlignCenter().Column(c =>
+                                        {
+                                            c.Item().AlignCenter().Text(maSanBayDen)
+                                                .Bold().FontSize(17).FontColor("#1D4ED8");
+                                            c.Item().AlignCenter().Text(sanBayDen)
+                                                .FontSize(7).FontColor("#334155");
+                                            c.Item().AlignCenter().Text(thoiGianDen?.ToString("HH:mm") ?? "")
+                                                .SemiBold().FontSize(9);
+                                            c.Item().AlignCenter().Text(thoiGianDen?.ToString("dd/MM/yyyy") ?? "")
+                                                .FontSize(7).FontColor("#64748B");
+                                        });
+                                    });
+                                });
+                            });
+                        });
+
+                        // --- Danh sach ghe ---
+                        col.Item().Column(section =>
+                        {
+                            TieuDeMuc(section.Item(), "DANH SACH GHE");
+                            section.Item().PaddingTop(3).Column(list =>
+                            {
+                                int stt = 1;
+                                foreach (var ct in datVe.ChiTietDatVes)
+                                {
+                                    var loaiVe = ct.IdGheNgoiNavigation?.IdLoaiVeNavigation?.TenLoaiVe ?? "--";
+                                    var soGhe = ct.IdGheNgoiNavigation?.SoGhe ?? "--";
+
+                                    list.Item().PaddingBottom(2).MinHeight(28).Layers(card =>
+                                    {
+                                        card.Layer().Canvas((canvas, size) =>
+                                        {
+                                            VeKhungBoGoc(canvas, size, "#FFFFFF");
+                                        });
+
+                                        card.PrimaryLayer().PaddingHorizontal(6).PaddingVertical(4).Row(r =>
+                                        {
+                                            r.ConstantItem(24).AlignMiddle().Text($"{stt}")
+                                                .SemiBold().FontSize(7).FontColor("#1D4ED8");
+                                            r.ConstantItem(72).AlignMiddle().Text(soGhe)
+                                                .SemiBold().FontSize(8);
+                                            r.RelativeItem().AlignMiddle().Text(loaiVe)
+                                                .FontSize(7).FontColor("#334155");
+                                        });
+                                    });
+
+                                    stt++;
+                                }
+
+                                if (!datVe.ChiTietDatVes.Any())
+                                {
+                                    list.Item().Text("Khong co ghe nao trong dat ve nay.")
+                                        .Italic().FontSize(7).FontColor("#64748B");
+                                }
+                            });
+                        });
+
+                        // --- Tong tien ---
+                        col.Item().Layers(total =>
+                        {
+                            total.Layer().Canvas((canvas, size) =>
+                            {
+                                VeKhungBoGoc(canvas, size, "#0B3D91");
+                            });
+
+                            total.PrimaryLayer().Padding(6).Row(row =>
+                            {
+                                row.RelativeItem().AlignMiddle().Text("TONG TIEN THANH TOAN")
+                                    .SemiBold().FontSize(7).FontColor("#BFDBFE");
+                                row.ConstantItem(100).AlignRight().AlignMiddle()
+                                    .Text($"{datVe.Gia?.ToString("N0")} VND")
+                                    .Bold().FontSize(10).FontColor("#FDE047");
+                            });
+                        });
+
+                        // --- Loi cam on + chu ky + QR ---
+                        col.Item().Layers(bottom =>
+                        {
+                            bottom.Layer().Canvas((canvas, size) =>
+                            {
+                                VeKhungBoGoc(canvas, size, "#FFFFFF");
+                            });
+
+                            bottom.PrimaryLayer().Padding(6).Row(row =>
+                            {
+                                row.RelativeItem().AlignMiddle().Column(c =>
+                                {
+                                    c.Spacing(1);
+                                    c.Item().Text("Cam on quy khach da su dung dich vu!")
+                                        .Italic().FontSize(7).FontColor("#475569");
+                                    c.Item().Text("Vui long quet QR de check-in nhanh.")
+                                        .Italic().FontSize(7).FontColor("#475569");
+                                });
+
+                                row.ConstantItem(84).AlignRight().Column(c =>
+                                {
+                                    c.Item().AlignRight().Text("Chu ky nhan vien")
+                                        .SemiBold().FontSize(6).FontColor("#1E3A8A");
+                                    if (signBytes != null)
+                                        c.Item().AlignRight().Width(54).Height(22)
+                                            .Image(signBytes).FitArea();
+                                    else
+                                        c.Item().Height(22);
+                                });
+
+                                row.ConstantItem(52).AlignRight().Column(c =>
+                                {
+                                    c.Item().AlignCenter().Text("QR CHECK-IN")
+                                        .SemiBold().FontSize(5.5f).FontColor("#1E3A8A");
+
+                                    if (qrBytes != null)
+                                    {
+                                        c.Item().PaddingTop(2).AlignCenter().Width(42).Height(42)
+                                            .Image(qrBytes).FitArea();
+                                    }
+                                    else
+                                    {
+                                        c.Item().PaddingTop(18).AlignCenter()
+                                            .Text("QR unavailable").FontSize(6).FontColor("#94A3B8");
+                                    }
+                                });
+                            });
+                        });
                     });
+
+                    // ===== FOOTER =====
+                    page.Footer()
+                        .BorderTop(1).BorderColor("#DBEAFE")
+                        .PaddingTop(3)
+                        .Row(row =>
+                        {
+                            row.RelativeItem().Text($"In ngay: {DateTime.Now:dd/MM/yyyy HH:mm}")
+                                .FontSize(6).FontColor("#64748B");
+                            row.RelativeItem().AlignCenter().Text(x =>
+                            {
+                                x.Span("Trang ").FontSize(6).FontColor("#64748B");
+                                x.CurrentPageNumber().FontSize(6).FontColor("#64748B");
+                                x.Span(" / ").FontSize(6).FontColor("#64748B");
+                                x.TotalPages().FontSize(6).FontColor("#64748B");
+                            });
+                            row.RelativeItem().AlignRight().Text("QuanLyDatVeMayBay")
+                                .FontSize(6).FontColor("#64748B");
+                        });
                 });
             });
 

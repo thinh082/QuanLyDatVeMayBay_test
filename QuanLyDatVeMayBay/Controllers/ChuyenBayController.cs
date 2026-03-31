@@ -334,13 +334,55 @@ namespace QuanLyDatVeMayBay.Controllers
 
                     await _context.SaveChangesAsync();
                     var email = taiKhoan.Email;
-                    var tieuDe = "Xác nhận đặt vé máy bay thành công!";
-                    var noiDung =
-                        $"<p>Bạn đã đặt vé máy bay thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>" +
-                        $"<p>Mã đặt vé: {datVe.Id}</p>" +
-                        $"<p>Trân trọng,</p>" +
-                        $"<p>Đội ngũ hỗ trợ khách hàng</p>";
+                    // 1. Định nghĩa phần CSS (Inline CSS để đảm bảo hiển thị tốt trên mọi trình duyệt Email)
+                    var emailStyle = @"
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 600px;
+    margin: 0 auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+";
 
+                    var headerStyle = "background-color: #0056b3; color: #ffffff; padding: 20px; text-align: center; margin: 0;";
+                    var bodyStyle = "padding: 20px; background-color: #ffffff;";
+                    var highlightBox = "background-color: #f8f9fa; border-left: 4px solid #0056b3; padding: 15px; margin: 20px 0;";
+                    var footerStyle = "padding: 15px; text-align: center; font-size: 12px; color: #777; background-color: #f1f1f1;";
+
+                    // 2. Nội dung Email với cấu trúc HTML sạch sẽ
+                    var tieuDe = "Xác nhận đặt vé máy bay thành công!";
+                    var noiDung = $@"
+<div style='{emailStyle}'>
+    <div style='{headerStyle}'>
+        <h2 style='margin:0;'>Xác Nhận Đặt Vé Thành Công</h2>
+    </div>
+    
+    <div style='{bodyStyle}'>
+        <p>Xin chào <strong>Quý khách</strong>,</p>
+        <p>Cảm ơn Quý khách đã tin tưởng và sử dụng dịch vụ của chúng tôi. Yêu cầu đặt vé của bạn đã được hệ thống xác nhận thành công.</p>
+        
+        <div style='{highlightBox}'>
+            <p style='margin:0;'><strong>Mã đặt vé của bạn:</strong></p>
+            <h3 style='margin:5px 0; color: #d9534f; font-size: 24px;'>{datVe.Id}</h3>
+        </div>
+
+        <p>Quý khách vui lòng kiểm tra <strong>tệp đính kèm</strong> để xem thông tin chi tiết và mã QR để làm thủ tục nhanh chóng.</p>
+        
+        <p>Nếu cần hỗ trợ, đừng ngần ngại liên hệ với đội ngũ chăm sóc khách hàng của chúng tôi qua hotline hoặc email này.</p>
+        
+        <p>Chúc Quý khách có một hành trình an toàn và đầy thú vị!</p>
+        <br>
+        <p>Trân trọng,<br><strong>Đội ngũ hỗ trợ khách hàng</strong></p>
+    </div>
+
+    <div style='{footerStyle}'>
+        Đây là email tự động, vui lòng không phản hồi email này.
+    </div>
+</div>";
+
+                    // 3. Giữ nguyên logic xử lý Background Task
                     var qrCodeBytes = _ThinhServices.GenerateQRCodeBytes(datVe.Id.ToString());
                     _taskQueue.QueueBackgroundWorkItem(async (sp, ct) =>
                     {

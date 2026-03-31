@@ -206,17 +206,27 @@ namespace QuanLyDatVeMayBay.Controllers
 
                             await _context.SaveChangesAsync();
 
-                            // Gửi email và thông báo
-                            var taiKhoan = await _context.TaiKhoans.FindAsync(thanhToanCho.IdTaiKhoan);
-                            var email = taiKhoan.Email;
-                            var tieuDe = "Xác nhận đặt vé máy bay thành công!";
-                            var noiDung =
-                                $"<p>Bạn đã đặt vé máy bay thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>" +
-                                $"<p>Mã đặt vé: {datVe.Id}</p>" +
-                                $"<p>Trân trọng,</p>" +
-                                $"<p>Đội ngũ hỗ trợ khách hàng</p>";
+                        // Gửi email và thông báo
+                        var taiKhoan = await _context.TaiKhoans.FindAsync(thanhToanCho.IdTaiKhoan);
+                        var email = taiKhoan.Email;
+                        var tieuDe = "Xác nhận đặt vé máy bay thành công!";
 
-                            var qrCodeBytes = _services.GenerateQRCodeBytes(datVe.Id.ToString());
+                        var noiDung =
+                            $"<p>Xin chào Quý khách,</p>" +
+                            $"<p>Cảm ơn Quý khách đã sử dụng dịch vụ đặt vé máy bay của chúng tôi.</p>" +
+                            $"<p>Chúng tôi xin thông báo rằng yêu cầu đặt vé của Quý khách đã được xác nhận thành công. " +
+                            $"Thông tin đặt vé đã được ghi nhận trong hệ thống và sẵn sàng để Quý khách sử dụng cho hành trình sắp tới.</p>" +
+                            $"<p><strong>Mã đặt vé:</strong> {datVe.Id}</p>" +
+                            $"<p>Quý khách vui lòng kiểm tra tệp đính kèm trong email này để xem thông tin chi tiết và sử dụng khi cần thiết trong quá trình làm thủ tục chuyến bay.</p>" +
+                            $"<p>Nếu cần hỗ trợ thêm về thông tin chuyến bay, thay đổi đặt vé hoặc các vấn đề liên quan, vui lòng liên hệ với bộ phận hỗ trợ khách hàng của chúng tôi. " +
+                            $"Chúng tôi luôn sẵn sàng hỗ trợ Quý khách trong thời gian sớm nhất.</p>" +
+                            $"<p>Một lần nữa, xin chân thành cảm ơn Quý khách đã tin tưởng lựa chọn dịch vụ của chúng tôi. " +
+                            $"Kính chúc Quý khách có một chuyến đi thuận lợi, an toàn và nhiều trải nghiệm tốt đẹp.</p>" +
+                            $"<p>Trân trọng,</p>" +
+                            $"<p>Đội ngũ hỗ trợ khách hàng</p>";
+
+
+                        var qrCodeBytes = _services.GenerateQRCodeBytes(datVe.Id.ToString());
                             _taskQueue.QueueBackgroundWorkItem(async (sp, ct) =>
                             {
                                 var emailService = sp.GetRequiredService<ThinhService>();

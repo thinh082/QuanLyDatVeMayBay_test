@@ -28,6 +28,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+QuestPDF.Settings.EnableDebugging = false;
 builder.Services.AddDbContext<ThinhContext>(c =>
         c.UseSqlServer(builder.Configuration.GetConnectionString("Connection")));
 builder.Services.AddScoped<ThinhService>();

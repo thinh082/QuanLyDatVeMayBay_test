@@ -46,7 +46,12 @@ namespace QuanLyDatVeMayBay.Controllers.QuanLy
             if (pdfBytes == null)
                 return NotFound(new { statusCode = 404, message = "Không tìm thấy vé" });
 
-            return File(pdfBytes, "application/pdf", $"Ve_{idDatVe}.pdf");
+            Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+
+            var tenFile = $"Ve_{idDatVe}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+            return File(pdfBytes, "application/pdf", tenFile);
         }
     }
 }
