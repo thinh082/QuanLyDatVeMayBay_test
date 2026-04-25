@@ -142,12 +142,11 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
                     var refreshTokens = await _context.RefreshTokens
                         .Where(rt => rt.IdTaiKhoan == idTaiKhoan)
                         .ToListAsync();
-                    
+
                     if (refreshTokens.Any())
                     {
-                        var firstToken = refreshTokens.OrderBy(rt => rt.ExpiryDate).First();
-                        // Kiểm tra giá trị datetime hợp lệ (từ năm 1900 đến 2100)
-                        if (firstToken.ExpiryDate.Year >= 1900 && firstToken.ExpiryDate.Year <= 2100)
+                        var firstToken = refreshTokens.OrderBy(rt => rt.ExpiryDate).FirstOrDefault();
+                        if (firstToken != null && firstToken.ExpiryDate.Year >= 1900 && firstToken.ExpiryDate.Year <= 2100)
                         {
                             ngayTao = firstToken.ExpiryDate;
                         }

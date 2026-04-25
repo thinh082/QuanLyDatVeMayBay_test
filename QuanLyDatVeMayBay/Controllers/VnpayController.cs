@@ -231,12 +231,30 @@ namespace QuanLyDatVeMayBay.Controllers
                             {
                                 var emailService = sp.GetRequiredService<ThinhService>();
                                 var thongBaoService = sp.GetRequiredService<IThongBaoService>();
+                                var context = sp.GetRequiredService<ThinhContext>();
+
+                                // Lấy thông tin chi tiết chuyến bay
+                                var lichBay = await context.LichBays.FindAsync(datVeRedis.IdLichBay);
+                                var chuyenBay = await context.ChuyenBays.FindAsync(datVeRedis.IdChuyenBay);
+                                var hangBay = chuyenBay?.IdHangBayNavigation;
+                                var sanBayDi = chuyenBay?.MaSanBayDiNavigation;
+                                var sanBayDen = chuyenBay?.MaSanBayDenNavigation;
+
+                                // Tạo nội dung thông báo chi tiết
+                                var noiDungChiTiet = $"Mã đặt vé: {datVe.Id}\n" +
+                                    $"Hãng bay: {hangBay?.TenHang ?? "N/A"}\n" +
+                                    $"Sân bay đi: {sanBayDi?.Ten ?? "N/A"} ({chuyenBay?.MaSanBayDi})\n" +
+                                    $"Sân bay đến: {sanBayDen?.Ten ?? "N/A"} ({chuyenBay?.MaSanBayDen})\n" +
+                                    $"Thời gian cất cánh: {lichBay?.ThoiGianOsanBayDiUtc:dd/MM/yyyy HH:mm}\n" +
+                                    $"Thời gian hạ cánh: {lichBay?.ThoiGianOsanBayDenUtc:dd/MM/yyyy HH:mm}\n" +
+                                    $"Số ghế: {datVeRedis.IdGheNgois.Count}\n" +
+                                    $"Tổng tiền: {thanhToanCho.SoTien:N0} VND";
 
                                 var emailTask = emailService.GuiEmail_WithQRCoder(email, tieuDe, noiDung, qrCodeBytes);
                                 var convertQr = Convert.ToBase64String(qrCodeBytes);
                                 var thongBaoTask = thongBaoService.GuiThongBao(
                                     thanhToanCho.IdTaiKhoan,
-                                    "Bạn đã đặt vé máy bay thành công. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!",
+                                    noiDungChiTiet,
                                     "Xác nhận đặt vé máy bay thành công!",
                                     "data:image/png;base64," + convertQr
                                 );

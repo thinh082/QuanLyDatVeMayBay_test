@@ -72,6 +72,15 @@ namespace QuanLyDatVeMayBay.Services
         public async Task<dynamic> GuiEmail_WithQRCoder(string Email, string TieuDe, string NoiDungHtmlWithCid, byte[] qrCodeBytes)
         {
             var emailSetting = _context.EmailSettings.AsNoTracking().FirstOrDefault();
+            if (emailSetting == null)
+            {
+                return new
+                {
+                    statusCode = 500,
+                    message = "Không tìm thấy cấu hình email"
+                };
+            }
+
             try
             {
                 var emailFrom = emailSetting.SmtpUsername;
@@ -177,6 +186,9 @@ namespace QuanLyDatVeMayBay.Services
         public byte[] GenerateQRCodeBytes(string content)
         {
             var key = _context.HashKeys.AsNoTracking().FirstOrDefault();
+            if (key == null)
+                throw new InvalidOperationException("Không tìm thấy khóa mã hóa");
+
             string encryptedContent = Encrypt(content, key.PublicKey);
             string encryptedContentBase64 = encryptedContent;
             using (QRCodeGenerator qrGenerator = new QRCodeGenerator())

@@ -28,9 +28,9 @@ namespace QuanLyDatVeMayBay.Services.DichVuService
                         Id = r.Id,
                         IdLichBay = r.IdLichBay,
                         NgayDat = r.NgayDat,
-                        DiemDi = r.IdChuyenBayNavigation.MaSanBayDiNavigation.Ten,
-                        DiemDen = r.IdChuyenBayNavigation.MaSanBayDiNavigation.Ten,
-                        ThoiGianBatDau = r.LichBay.ThoiGianOsanBayDiUtc,                          
+                        DiemDi = r.IdChuyenBayNavigation != null ? r.IdChuyenBayNavigation.MaSanBayDiNavigation.Ten : "Không xác định",
+                        DiemDen = r.IdChuyenBayNavigation != null && r.IdChuyenBayNavigation.MaSanBayDenNavigation != null ? r.IdChuyenBayNavigation.MaSanBayDenNavigation.Ten : "Không xác định",
+                        ThoiGianBatDau = r.LichBay.ThoiGianOsanBayDiUtc,
                         ThoiGianKetThuc = r.LichBay.ThoiGianOsanBayDenUtc,
                         TrangThai = r.TrangThai,
                     })

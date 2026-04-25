@@ -117,8 +117,8 @@ namespace QuanLyDatVeMayBay.Services.ThanhToanServices
 
                 };
                 await _context.LichSuThanhToans.AddAsync(thanhToan);
-                 _context.SaveChanges();
-                trans.Commit();
+                await _context.SaveChangesAsync();
+                await trans.CommitAsync();
                 return new { statusCode = 200, Message = "Thanh toán thành công." };
             }
             catch (Exception ex)

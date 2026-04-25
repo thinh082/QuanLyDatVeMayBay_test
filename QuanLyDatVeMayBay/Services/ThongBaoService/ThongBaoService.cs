@@ -31,7 +31,7 @@ namespace QuanLyDatVeMayBay.Services.ThongBaoService
                 HinhAnh = image
             };
             _context.ThongBaos.Add(thongBao);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
         }
         public async Task<dynamic> ChiTietThongBao(long idThongBao)
         {

@@ -22,56 +22,80 @@ namespace QuanLyDatVeMayBay.Services.PaypalService
             _context = thinhContext;
             _httpClient = client;
             var setting = _context.Paypalsettings.FirstOrDefault();
+            if (setting == null)
+                throw new InvalidOperationException("PayPal settings not found in database");
             ClientId = setting.ClientId;
             Secret = setting.SecretId;
             baseUrl = setting.BaseUrl;
         }
         public async Task<string> GetAccessToken()
         {
-            var byteArr = Encoding.UTF8.GetBytes($"{ClientId}:{Secret}");
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArr));
-            var body = new Dictionary<string, string>
+            try
             {
-                { "grant_type", "client_credentials" }
-            };
-            var respone = await _httpClient.PostAsync($"{baseUrl}/v1/oauth2/token", new FormUrlEncodedContent(body));
-            var json = await respone.Content.ReadAsStringAsync();
-            var token = JsonSerializer.Deserialize<JsonElement>(json).GetProperty("access_token").GetString();
-            return token!;
+                var byteArr = Encoding.UTF8.GetBytes($"{ClientId}:{Secret}");
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArr));
+                var body = new Dictionary<string, string>
+                {
+                    { "grant_type", "client_credentials" }
+                };
+                var respone = await _httpClient.PostAsync($"{baseUrl}/v1/oauth2/token", new FormUrlEncodedContent(body));
+                var json = await respone.Content.ReadAsStringAsync();
+                var token = JsonSerializer.Deserialize<JsonElement>(json).GetProperty("access_token").GetString();
+                if (string.IsNullOrEmpty(token))
+                    throw new InvalidOperationException("Failed to retrieve access token from PayPal");
+                return token;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error getting PayPal access token: " + ex.Message, ex);
+            }
         }
         public async Task<string> TaoDonHang(decimal amount,string state)
         {
-            var token = await GetAccessToken();
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var body = new
+            try
             {
-                intent = "CAPTURE",
-                purchase_units = new[]
+                var token = await GetAccessToken();
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                var body = new
                 {
-                    new
+                    intent = "CAPTURE",
+                    purchase_units = new[]
                     {
-                        amount = new
+                        new
                         {
-                            currency_code = "USD",
-                            value = amount.ToString("F2")
-                        },
-                        description = "Payment test order"
+                            amount = new
+                            {
+                                currency_code = "USD",
+                                value = amount.ToString("F2")
+                            },
+                            description = "Payment test order"
+                        }
+                    },
+                    application_context = new
+                    {
+                        return_url = $"https://audrina-subultimate-ghostily.ngrok-free.dev/api/PayPal/capture-order?state={state}",
+                        cancel_url = "https://audrina-subultimate-ghostily.ngrok-free.dev/api/PayPal/cancel-order?"
                     }
-                },
-                application_context = new
-                {
-                    return_url = $"https://audrina-subultimate-ghostily.ngrok-free.dev/api/PayPal/capture-order?state={state}",
-                    cancel_url = "https://audrina-subultimate-ghostily.ngrok-free.dev/api/PayPal/cancel-order?"
-                }
-            };
-            var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-            var respone = await _httpClient.PostAsync($"{baseUrl}/v2/checkout/orders", content);
-            var json = await respone.Content.ReadAsStringAsync();
+                };
+                var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+                var respone = await _httpClient.PostAsync($"{baseUrl}/v2/checkout/orders", content);
+                var json = await respone.Content.ReadAsStringAsync();
 
-            var order = JsonSerializer.Deserialize<JsonElement>(json);
-            var approveLink = order.GetProperty("links").EnumerateArray()
-                .FirstOrDefault(x => x.GetProperty("rel").GetString() == "approve").GetProperty("href").GetString();
-            return approveLink!;
+                var order = JsonSerializer.Deserialize<JsonElement>(json);
+                var linksArray = order.GetProperty("links");
+                var approveLink = linksArray.EnumerateArray()
+                    .FirstOrDefault(x => x.GetProperty("rel").GetString() == "approve")
+                    .GetProperty("href").GetString();
+
+                if (string.IsNullOrEmpty(approveLink))
+                    throw new InvalidOperationException("Approve link not found in PayPal response");
+
+                return approveLink;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error creating PayPal order: " + ex.Message, ex);
+            }
         }
 
         public async Task<bool> CaptureOrder(string orderId)

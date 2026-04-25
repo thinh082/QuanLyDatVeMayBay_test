@@ -139,6 +139,7 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
             {
                 danhSachGhe = redisData
                     .Select(x => JsonSerializer.Deserialize<GheNgoiDto>(x.Value))
+                    .Where(x => x != null)
                     .ToList();
             }
             else
@@ -203,6 +204,12 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
                     }
 
                     var seat = JsonSerializer.Deserialize<GheNgoiDto>(seatJson);
+                    if (seat == null)
+                    {
+                        failedSeats.Add(idGhe);
+                        continue;
+                    }
+
                     if (seat.IdTrangThai != 0)
                     {
                         failedSeats.Add(idGhe);
@@ -249,8 +256,11 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
                         if (!seatJson.IsNullOrEmpty)
                         {
                             var seat = JsonSerializer.Deserialize<GheNgoiDto>(seatJson);
-                            seat.IdTrangThai = 1;
-                            await _redis.Db.HashSetAsync(redisHashKey, seatId.ToString(), JsonSerializer.Serialize(seat));
+                            if (seat != null)
+                            {
+                                seat.IdTrangThai = 1;
+                                await _redis.Db.HashSetAsync(redisHashKey, seatId.ToString(), JsonSerializer.Serialize(seat));
+                            }
                         }
                     }
 
@@ -288,8 +298,11 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
                     if (!seatJson.IsNullOrEmpty)
                     {
                         var seat = JsonSerializer.Deserialize<GheNgoiDto>(seatJson);
-                        seat.IdTrangThai = 1;
-                        await _redis.Db.HashSetAsync(redisHashKey, seatId.ToString(), JsonSerializer.Serialize(seat));
+                        if (seat != null)
+                        {
+                            seat.IdTrangThai = 1;
+                            await _redis.Db.HashSetAsync(redisHashKey, seatId.ToString(), JsonSerializer.Serialize(seat));
+                        }
                     }
                 }
 
@@ -320,9 +333,11 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
 
                     var holdJson = await _redis.Db.StringGetAsync(lockKey);
                     if (string.IsNullOrEmpty(holdJson))
-                        continue; 
+                        continue;
 
                     var holdInfo = JsonSerializer.Deserialize<SeatHoldInfo>(holdJson);
+                    if (holdInfo == null)
+                        continue;
 
                     if (holdInfo.UserId != idTaiKhoan)
                         continue;
@@ -333,9 +348,12 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
                     if (!seatJson.IsNullOrEmpty)
                     {
                         var seat = JsonSerializer.Deserialize<GheNgoiDto>(seatJson);
-                        seat.IdTrangThai = 0;
-                        await _redis.Db.HashSetAsync(redisHashKey, idGhe.ToString(), JsonSerializer.Serialize(seat));
-                        releasedSeats.Add(idGhe);
+                        if (seat != null)
+                        {
+                            seat.IdTrangThai = 0;
+                            await _redis.Db.HashSetAsync(redisHashKey, idGhe.ToString(), JsonSerializer.Serialize(seat));
+                            releasedSeats.Add(idGhe);
+                        }
                     }
                 }
 
@@ -416,8 +434,11 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
                         if (!seatJson.IsNullOrEmpty)
                         {
                             var seat = JsonSerializer.Deserialize<GheNgoiDto>(seatJson);
-                            seat.IdTrangThai = 0;
-                            await _redis.Db.HashSetAsync(redisKey, ghe.Id.ToString(), JsonSerializer.Serialize(seat));
+                            if (seat != null)
+                            {
+                                seat.IdTrangThai = 0;
+                                await _redis.Db.HashSetAsync(redisKey, ghe.Id.ToString(), JsonSerializer.Serialize(seat));
+                            }
                         }
 
                         await _hub.Clients.Group($"Flight_{ghe.IdLichBay}")
@@ -446,18 +467,19 @@ namespace QuanLyDatVeMayBay.Services.ChuyenBayService
             try
             {
                 var key = await _context.HashKeys.FirstOrDefaultAsync();
+                if (key == null)
+                    return new { statusCode = 500, message = "Lỗi hệ thống: Không tìm thấy khóa mã hóa" };
+
                 var idDatVeString = ThinhService.Decrypt(id, key.PrivateKey);
                 long idDatVe = long.Parse(idDatVeString);
                 var datVe = await _context.DatVes.FirstOrDefaultAsync(r => r.Id == idDatVe);
-                var ngayBay = await _context.LichBays.FirstOrDefaultAsync(r => r.Id == datVe.LichBayId);
                 if (datVe == null)
                     return new { statusCode = 404, message = "Đặt vé không tồn tại" };
-                //if(ngayBay == null)
-                //    return new { statusCode = 404, message = "Lịch bay không tồn tại" };
-                //if (ngayBay.ThoiGianOsanBayDiUtc <= DateTime.Now)
-                //{
-                //    return new { statusCode = 400, message = "Chưa đến ngày bay, không thể check-in" };
-                //}
+
+                var ngayBay = await _context.LichBays.FirstOrDefaultAsync(r => r.Id == datVe.LichBayId);
+                if (ngayBay == null)
+                    return new { statusCode = 404, message = "Lịch bay không tồn tại" };
+
                 datVe.TrangThai = "đã checkin";
                 _context.DatVes.Update(datVe);
                 await _context.SaveChangesAsync();

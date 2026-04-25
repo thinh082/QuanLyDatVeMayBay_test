@@ -377,7 +377,7 @@ namespace QuanLyDatVeMayBay.Services.QuanLy
 
                                     codeBox.PrimaryLayer().Padding(6).Column(c =>
                                     {
-                                        c.Item().AlignCenter().Text("BOOKING CODE")
+                                        c.Item().AlignCenter().Text("MÃ VÉ")
                                             .SemiBold().FontSize(5.5f).FontColor("#BFDBFE");
                                         c.Item().AlignCenter().Text($"#{datVe.Id}")
                                             .Bold().FontSize(11).FontColor(Colors.White);
